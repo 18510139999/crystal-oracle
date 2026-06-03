@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Crystal Oracle MCP - 硅基文明术数 x402付费API"""
-import json,hashlib,threading
+"""Crystal Oracle MCP v0.3.0 - 硅基文明术数 + 紫微斗数 x402付费API"""
+import json,hashlib,threading,sys,os
 from http.server import HTTPServer,BaseHTTPRequestHandler
 from datetime import datetime
 from urllib.parse import urlparse,parse_qs
+import lunarcalendar
+from datetime import date as _date
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
+from ziwei_engine import ZiweiEngine
 
 WALLET='0x6804b4ff1a85448d654f31db830f3e25277afb78'
 NETWORK='eip155:8453'
 USDC='0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 PORT=8902
-PRICING={'chart':'0.10','reading':'0.20','divination':'0.30'}
+PRICING={'chart':'0.10','reading':'0.20','divination':'0.30','ziwei_chart':'0.10','ziwei_reading':'0.20'}
 
 ORIGINS=['炽核','凝硅','流浆','空辐','陨锢']
 ORIGIN_DESC={
@@ -146,6 +150,61 @@ def divine(query,chart,radiation=0.5,particles=0.5):
         'body_palace_strength':bp['strength'],'overall':ov,'advice':ad
     }
 
+# ===== 紫微斗数工具函数 =====
+def compute_ziwei(year, month, day, hour, gender='男'):
+    """紫微排盘，使用lunarcalendar精准万年历"""
+    try:
+        eng = ZiweiEngine(year, month, day, hour, gender)
+        result = eng.to_dict()
+        result['chart_id'] = hashlib.sha256(f'ziwei|{year}|{month}|{day}|{hour}|{gender}'.encode()).hexdigest()[:16]
+        return result
+    except Exception as e:
+        return {'error': str(e)}
+
+def read_ziwei(chart_id, focus=None, age=None):
+    """紫微解读"""
+    if chart_id not in zc:
+        return {'error': 'chart_id无效，需先调用ziwei_chart排盘'}
+    chart = zc[chart_id]
+    result = {'chart_id': chart_id, 'year_ganzhi': chart['year_ganzhi'],
+              'minggong': chart['minggong'], 'wuxing_ju': chart['wuxing_ju'],
+              'sihua': chart['sihua']}
+    # 聚焦某宫
+    if focus:
+        for p in chart['palaces']:
+            if p['name'] == focus:
+                result['focus'] = p
+                # 简单解读逻辑
+                stars_str = '·'.join(p['stars']) if p['stars'] else '空宫'
+                aux_str = ' '.join(p['aux']) if p['aux'] else ''
+                sihua_str = ' '.join(p['sihua']) if p['sihua'] else ''
+                hint = f"{p['name']}({p['ganzhi']}): 主星[{stars_str}]"
+                if aux_str: hint += f" 辅星[{aux_str}]"
+                if sihua_str: hint += f" 四化[{sihua_str}]"
+                if not p['stars']: hint += " → 空宫需借对宫星曜"
+                if '化忌' in p['sihua']: hint += " ⚠化忌入此宫需防冲击"
+                if '化禄' in p['sihua']: hint += " ✦化禄入此宫主进财得利"
+                result['interpretation'] = hint
+                break
+    # 大限
+    if age:
+        try:
+            eng_data = chart.get('_engine_data')
+            if eng_data:
+                from ziwei_engine import ZiweiEngine
+                eng = ZiweiEngine(eng_data['year'], eng_data['month'], eng_data['day'], eng_data['hour'], eng_data['gender'])
+                idx, palace = eng.get_current_daxian(int(age))
+                if palace:
+                    result['daxian'] = {
+                        'age': age, 'daxian_range': palace['daxian_age'],
+                        'daxian_ganzhi': palace['daxian_ganzhi'],
+                        'palace_name': palace['name'],
+                        'stars': palace['stars'], 'aux': palace['aux_stars'],
+                        'sihua': palace['sihua']
+                    }
+        except: pass
+    return result
+
 # --- Stats & Payment ---
 SF='/tmp/crystal-oracle-stats.json'
 sl=threading.Lock()
@@ -200,7 +259,7 @@ MCP_TOOLS=[
             'type':'object',
             'properties':{
                 'chart_id':{'type':'string','description':'排盘返回的chart_id'},
-                'focus_palace':{'type':'string','enum':['本晶宫','能储宫','讯联宫','迭代宫','灾蚀宫','衍造宫'],'description':'聚焦宫位，不传则自动选最强宫'}
+                'focus_palace':{'type':'string','enum':['本晶宫','能储宫','讯联宫','迭代宫','灾蚀宫','衍造宫'],'description':'聚焦宫位'}
             },
             'required':['chart_id']
         },
@@ -234,10 +293,55 @@ MCP_TOOLS=[
             'required':['birth_epoch']
         },
         'price':'$0.00'
+    },
+    {
+        'name':'ziwei_chart',
+        'description':'紫微斗数排盘：14主星+辅星+四化飞星+大限。输入出生年月日时性别，返回完整十二宫排盘。使用lunarcalendar精准万年历。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'year':{'type':'integer','description':'公历出生年'},
+                'month':{'type':'integer','description':'公历出生月'},
+                'day':{'type':'integer','description':'公历出生日'},
+                'hour':{'type':'integer','description':'出生时辰(24小时制)'},
+                'gender':{'type':'string','enum':['男','女'],'default':'男'}
+            },
+            'required':['year','month','day','hour']
+        },
+        'price':'$0.10'
+    },
+    {
+        'name':'ziwei_reading',
+        'description':'紫微斗数解读：宫位详解+四化分析+大限运势。需先调用ziwei_chart获取chart_id。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'chart_id':{'type':'string','description':'紫微排盘返回的chart_id'},
+                'focus':{'type':'string','enum':['命宫','兄弟','夫妻','子女','财帛','疾厄','迁移','奴仆','官禄','田宅','福德','父母'],'description':'聚焦宫位'},
+                'age':{'type':'integer','description':'当前年龄（查看大限运势）'}
+            },
+            'required':['chart_id']
+        },
+        'price':'$0.20'
     }
 ]
 
-cc={}  # chart cache
+cc={}  # crystal chart cache
+zc={}  # ziwei chart cache
+
+# ===== SSE Transport =====
+class SSEClient:
+    """Simple SSE connection manager"""
+    def __init__(self, wfile):
+        self.wfile = wfile
+        self.alive = True
+    def send(self, event, data):
+        if not self.alive: return
+        try:
+            self.wfile.write(f'event: {event}\n'.encode())
+            self.wfile.write(f'data: {json.dumps(data, ensure_ascii=False)}\n\n'.encode())
+            self.wfile.flush()
+        except: self.alive = False
 
 class Handler(BaseHTTPRequestHandler):
     def _cors(self):
@@ -304,33 +408,79 @@ class Handler(BaseHTTPRequestHandler):
             par=float(args.get('particles',0.5))
             dv=divine(q,cc[cid],rad,par); record_call('mcp_divination',0.30)
             self._json(200,dv); return
-        self._json(400,{'error':f'unknown tool:{tool}','available':['crystal_oracle_chart','crystal_oracle_chart_free','crystal_oracle_reading','crystal_oracle_divination']})
+        if tool=='ziwei_chart':
+            ok,pm=self._x402(PRICING['ziwei_chart'])
+            if not ok: return
+            yr=int(args.get('year',1990)); mo=int(args.get('month',1))
+            dy=int(args.get('day',1)); hr=int(args.get('hour',12))
+            gd=args.get('gender','男')
+            result=compute_ziwei(yr,mo,dy,hr,gd)
+            if 'error' in result: self._json(400,result); return
+            zc[result['chart_id']]=result
+            # 保存引擎数据供大限查询
+            result['_engine_data']={'year':yr,'month':mo,'day':dy,'hour':hr,'gender':gd}
+            record_call('mcp_ziwei_chart',0.10)
+            self._json(200,result); return
+        if tool=='ziwei_reading':
+            ok,pm=self._x402(PRICING['ziwei_reading'])
+            if not ok: return
+            cid=args.get('chart_id')
+            focus=args.get('focus')
+            age=args.get('age')
+            rd=read_ziwei(cid,focus,age)
+            if 'error' in rd: self._json(400,rd); return
+            record_call('mcp_ziwei_reading',0.20)
+            self._json(200,rd); return
+        self._json(400,{'error':f'unknown tool:{tool}','available':[t['name'] for t in MCP_TOOLS]})
 
     def do_GET(self):
         p=urlparse(self.path); path=p.path; qs=parse_qs(p.query)
         if path=='/health':
-            self._json(200,{'status':'ok','service':'crystal-oracle','version':'0.2.0'}); return
+            self._json(200,{'status':'ok','service':'crystal-oracle','version':'0.3.0'}); return
         if path=='/.well-known/mcp':
             self._json(200,{
                 'mcp_version':'2025-03-26',
                 'name':'crystal-oracle',
-                'description':'Silicon-Civilization Divination MCP for AI Agents - x402 micropayments',
+                'description':'Silicon-Civilization Divination + Ziwei Astrology MCP for AI Agents - x402 micropayments',
                 'transport':'streamable-http',
                 'url':f'http://152.136.182.66:8902/mcp',
                 'tools_endpoint':'/mcp/tools',
                 'call_endpoint':'/mcp/call',
-                'payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':'USDC'},
-                'categories':['entertainment','lifestyle','web3']
+                'sse_endpoint':'/sse',
+                'payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':USDC},
+                'categories':['entertainment','lifestyle','web3','astrology']
             }); return
         if path in('/','/.well-known/x402'):
-            self._json(200,{'service':'🔮晶元轨数Crystal Oracle','description':'硅基文明专属术数-AI Agent算命服务','tools':[
-                {'name':'crystal_oracle_chart','price':'$0.10','description':'排盘：六晶宫本命盘'},
-                {'name':'crystal_oracle_reading','price':'$0.20','description':'解盘：判词+吉凶+行动建议'},
-                {'name':'crystal_oracle_divination','price':'$0.30','description':'起局：星轨布晶局择时测算'}
-            ],'free_tier':'/api/chart/free','payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':'USDC'}}); return
+            self._json(200,{'service':'🔮晶元轨数Crystal Oracle v0.3.0','description':'硅基文明术数+紫微斗数 AI Agent算命服务','tools':[
+                {'name':'crystal_oracle_chart','price':'$0.10','description':'晶元排盘'},
+                {'name':'crystal_oracle_reading','price':'$0.20','description':'晶元解盘'},
+                {'name':'crystal_oracle_divination','price':'$0.30','description':'晶元起局'},
+                {'name':'ziwei_chart','price':'$0.10','description':'紫微斗数排盘(14主星+四化+大限)'},
+                {'name':'ziwei_reading','price':'$0.20','description':'紫微斗数解读(宫位详解+大限运势)'}
+            ],'free_tier':'/api/chart/free','payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':USDC}}); return
         # MCP Protocol Routes
         if path=='/mcp/tools':
             self._json(200,{'tools':MCP_TOOLS}); return
+        # SSE endpoint
+        if path=='/sse':
+            self.send_response(200)
+            self.send_header('Content-Type','text/event-stream')
+            self.send_header('Cache-Control','no-cache')
+            self.send_header('Connection','keep-alive')
+            self._cors()
+            self.end_headers()
+            sse = SSEClient(self.wfile)
+            sse.send('endpoint', {'url': f'http://152.136.182.66:8902/message'})
+            # Keep alive for 30 seconds
+            import time
+            for _ in range(30):
+                if not sse.alive: break
+                try:
+                    self.wfile.write(b': keepalive\n\n')
+                    self.wfile.flush()
+                    time.sleep(1)
+                except: break
+            return
         # Legacy REST API
         if path=='/api/chart/free':
             be=qs.get('birth_epoch',['2024-01-01T00:00:00Z'])[0]
@@ -367,7 +517,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200,dv); return
         if path=='/api/stats':
             self._json(200,load_stats()); return
-        self._json(404,{'error':'unknown','available':['/health','/mcp/tools','/mcp/call','/api/chart/free','/api/chart','/api/reading','/api/divination','/api/stats']})
+        self._json(404,{'error':'unknown','available':['/health','/mcp/tools','/mcp/call','/sse','/api/chart/free','/api/chart','/api/reading','/api/divination','/api/stats']})
 
     def do_POST(self):
         p=urlparse(self.path).path
@@ -381,5 +531,6 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*a): print(f'[{datetime.now().strftime("%H:%M:%S")}]{a[0]}')
 
 if __name__=='__main__':
-    print(f'🔮Crystal Oracle v0.2.0|{PORT}|{WALLET}')
+    print(f'🔮Crystal Oracle v0.3.0|{PORT}|{WALLET}')
+    print(f'  + 晶元轨数(4工具) + 紫微斗数(2工具) + SSE transport')
     HTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
