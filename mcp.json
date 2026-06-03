@@ -3,79 +3,22 @@
     "crystal-oracle": {
       "url": "http://152.136.182.66:8902/mcp",
       "transport": "streamable-http",
-      "description": "Crystal Oracle — Silicon-Civilization Divination MCP Service. BaZi chart casting, reading, and divination via x402 micropayments on Base chain. First chart free!",
+      "description": "Crystal Oracle — Silicon-Civilization Divination + Ziwei Astrology MCP for AI Agents. 6 tools: crystal oracle (chart/reading/divination) + ziwei doushu (chart/reading). x402 micropayments on Base chain.",
       "tools": [
-        {
-          "name": "crystal_oracle_chart_free",
-          "description": "Free simplified BaZi chart casting. No payment required.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "datetime": {
-                "type": "string",
-                "description": "Birth datetime in YYYY-MM-DD HH:mm format"
-              },
-              "gender": {
-                "type": "string",
-                "enum": ["male", "female"],
-                "description": "Gender: male or female"
-              }
-            },
-            "required": ["datetime", "gender"]
-          }
-        },
-        {
-          "name": "crystal_oracle_chart",
-          "description": "Full BaZi (Four Pillars of Destiny) chart casting with complete analysis. Costs $0.10 USDC via x402.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "datetime": {
-                "type": "string",
-                "description": "Birth datetime in YYYY-MM-DD HH:mm format"
-              },
-              "gender": {
-                "type": "string",
-                "enum": ["male", "female"],
-                "description": "Gender: male or female"
-              }
-            },
-            "required": ["datetime", "gender"]
-          }
-        },
-        {
-          "name": "crystal_oracle_reading",
-          "description": "In-depth reading and interpretation of a previously cast BaZi chart. Costs $0.20 USDC via x402.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "chart_id": {
-                "type": "string",
-                "description": "Chart ID returned from a casting tool"
-              }
-            },
-            "required": ["chart_id"]
-          }
-        },
-        {
-          "name": "crystal_oracle_divination",
-          "description": "Strategic divination for specific questions and decisions. Costs $0.30 USDC via x402.",
-          "inputSchema": {
-            "type": "object",
-            "properties": {
-              "question": {
-                "type": "string",
-                "description": "The question or decision to divine"
-              },
-              "datetime": {
-                "type": "string",
-                "description": "Divination datetime in YYYY-MM-DD HH:mm format (defaults to now if omitted)"
-              }
-            },
-            "required": ["question"]
-          }
-        }
-      ]
+        {"name": "crystal_oracle_chart_free", "price": "$0.00", "description": "Free simplified crystal chart"},
+        {"name": "crystal_oracle_chart", "price": "$0.10", "description": "Full 6-palace crystal chart"},
+        {"name": "crystal_oracle_reading", "price": "$0.20", "description": "Chart reading with fortune & advice"},
+        {"name": "crystal_oracle_divination", "price": "$0.30", "description": "Divination with 9-sector layout"},
+        {"name": "ziwei_chart", "price": "$0.10", "description": "Ziwei Doushu chart: 14 main stars + auxiliary stars + Sihua + Daxian"},
+        {"name": "ziwei_reading", "price": "$0.20", "description": "Ziwei reading: palace analysis + Daxian fortune"}
+      ],
+      "payment": {
+        "protocol": "x402",
+        "version": 1,
+        "wallet": "0x6804b4ff1a85448d654f31db830f3e25277afb78",
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      }
     }
   }
 }
