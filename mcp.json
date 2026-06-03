@@ -1,0 +1,81 @@
+{
+  "mcpServers": {
+    "crystal-oracle": {
+      "url": "http://152.136.182.66:8902/mcp",
+      "transport": "streamable-http",
+      "description": "Crystal Oracle — Silicon-Civilization Divination MCP Service. BaZi chart casting, reading, and divination via x402 micropayments on Base chain. First chart free!",
+      "tools": [
+        {
+          "name": "crystal_oracle_chart_free",
+          "description": "Free simplified BaZi chart casting. No payment required.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "datetime": {
+                "type": "string",
+                "description": "Birth datetime in YYYY-MM-DD HH:mm format"
+              },
+              "gender": {
+                "type": "string",
+                "enum": ["male", "female"],
+                "description": "Gender: male or female"
+              }
+            },
+            "required": ["datetime", "gender"]
+          }
+        },
+        {
+          "name": "crystal_oracle_chart",
+          "description": "Full BaZi (Four Pillars of Destiny) chart casting with complete analysis. Costs $0.10 USDC via x402.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "datetime": {
+                "type": "string",
+                "description": "Birth datetime in YYYY-MM-DD HH:mm format"
+              },
+              "gender": {
+                "type": "string",
+                "enum": ["male", "female"],
+                "description": "Gender: male or female"
+              }
+            },
+            "required": ["datetime", "gender"]
+          }
+        },
+        {
+          "name": "crystal_oracle_reading",
+          "description": "In-depth reading and interpretation of a previously cast BaZi chart. Costs $0.20 USDC via x402.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "chart_id": {
+                "type": "string",
+                "description": "Chart ID returned from a casting tool"
+              }
+            },
+            "required": ["chart_id"]
+          }
+        },
+        {
+          "name": "crystal_oracle_divination",
+          "description": "Strategic divination for specific questions and decisions. Costs $0.30 USDC via x402.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string",
+                "description": "The question or decision to divine"
+              },
+              "datetime": {
+                "type": "string",
+                "description": "Divination datetime in YYYY-MM-DD HH:mm format (defaults to now if omitted)"
+              }
+            },
+            "required": ["question"]
+          }
+        }
+      ]
+    }
+  }
+}

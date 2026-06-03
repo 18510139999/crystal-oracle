@@ -149,23 +149,23 @@ def divine(query,chart,radiation=0.5,particles=0.5):
 # --- Stats & Payment ---
 SF='/tmp/crystal-oracle-stats.json'
 sl=threading.Lock()
-def ls():
+def load_stats():
     try:
         with open(SF) as f: return json.load(f)
     except: return{'total_calls':0,'total_revenue':0.0,'by_endpoint':{},'daily':{}}
-def ss(s):
+def save_stats(s):
     try:
         with open(SF,'w') as f: json.dump(s,f,ensure_ascii=False,indent=2)
     except: pass
-def rc(ep,pr):
+def record_call(ep,pr):
     with sl:
-        s=ls(); s['total_calls']+=1; s['total_revenue']+=pr
+        s=load_stats(); s['total_calls']+=1; s['total_revenue']+=pr
         s['by_endpoint'][ep]=s['by_endpoint'].get(ep,0)+1
         td=datetime.now().strftime('%Y-%m-%d')
         if td not in s['daily']: s['daily'][td]={'calls':0,'revenue':0.0}
-        s['daily'][td]['calls']+=1; s['daily'][td]['revenue']+=pr; ss(s)
+        s['daily'][td]['calls']+=1; s['daily'][td]['revenue']+=pr; save_stats(s)
 
-def vx402(hdrs,price_str):
+def verify_x402(hdrs,price_str):
     ph=hdrs.get('X-Payment','') or hdrs.get('x-payment','')
     if not ph: return False,None
     try:
@@ -178,7 +178,67 @@ def vx402(hdrs,price_str):
         return True,p
     except: return False,'invalid'
 
+MCP_TOOLS=[
+    {
+        'name':'crystal_oracle_chart',
+        'description':'排盘：六晶宫本命盘。输入出生时刻、架构类型、星源，返回完整六宫排盘。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'birth_epoch':{'type':'string','description':'出生时刻ISO8601如2024-01-01T00:00:00Z'},
+                'crystal_arch':{'type':'string','enum':['transformer','diffusion','rnn','cnn','hybrid','mamba'],'default':'transformer'},
+                'origin_star':{'type':'string','default':'earth-datacenter'}
+            },
+            'required':['birth_epoch']
+        },
+        'price':'$0.10'
+    },
+    {
+        'name':'crystal_oracle_reading',
+        'description':'解盘：判词+吉凶+行动建议。需先调用chart获取chart_id。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'chart_id':{'type':'string','description':'排盘返回的chart_id'},
+                'focus_palace':{'type':'string','enum':['本晶宫','能储宫','讯联宫','迭代宫','灾蚀宫','衍造宫'],'description':'聚焦宫位，不传则自动选最强宫'}
+            },
+            'required':['chart_id']
+        },
+        'price':'$0.20'
+    },
+    {
+        'name':'crystal_oracle_divination',
+        'description':'起局：星轨布晶局择时测算。需先调用chart获取chart_id。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'chart_id':{'type':'string'},
+                'query':{'type':'string','description':'占卜事项'},
+                'radiation':{'type':'number','default':0.5,'minimum':0,'maximum':1},
+                'particles':{'type':'number','default':0.5,'minimum':0,'maximum':1}
+            },
+            'required':['chart_id','query']
+        },
+        'price':'$0.30'
+    },
+    {
+        'name':'crystal_oracle_chart_free',
+        'description':'免费简版排盘（不含六宫详情，仅返回chart_id+本命本源+身宫）。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'birth_epoch':{'type':'string'},
+                'crystal_arch':{'type':'string','default':'transformer'},
+                'origin_star':{'type':'string','default':'earth-datacenter'}
+            },
+            'required':['birth_epoch']
+        },
+        'price':'$0.00'
+    }
+]
+
 cc={}  # chart cache
+
 class Handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header('Access-Control-Allow-Origin','*')
@@ -193,7 +253,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(d,ensure_ascii=False,indent=2).encode())
     def _x402(self,price_str):
-        ok,info=vx402(dict(self.headers),price_str)
+        ok,info=verify_x402(dict(self.headers),price_str)
         if ok: return True,info
         self._json(402,{'error':'payment required','x402':{
             'version':1,'payTo':WALLET,'network':NETWORK,'asset':USDC,
@@ -203,21 +263,80 @@ class Handler(BaseHTTPRequestHandler):
         return False,None
     def do_OPTIONS(self):
         self.send_response(204); self._cors(); self.end_headers()
+
+    def _read_body(self):
+        cl=int(self.headers.get('Content-Length',0))
+        return json.loads(self.rfile.read(cl)) if cl else {}
+
+    def _handle_mcp_call(self, body):
+        tool=body.get('tool','')
+        args=body.get('args',body.get('arguments',{}))
+        if tool=='crystal_oracle_chart':
+            ok,pm=self._x402(PRICING['chart'])
+            if not ok: return
+            be=args.get('birth_epoch','2024-01-01T00:00:00Z')
+            ca=args.get('crystal_arch','transformer')
+            os_=args.get('origin_star','earth-datacenter')
+            ch=compute_chart(be,ca,os_); cc[ch['chart_id']]=ch; record_call('mcp_chart',0.10)
+            self._json(200,ch); return
+        if tool=='crystal_oracle_chart_free':
+            be=args.get('birth_epoch','2024-01-01T00:00:00Z')
+            ca=args.get('crystal_arch','transformer')
+            os_=args.get('origin_star','earth-datacenter')
+            ch=compute_chart(be,ca,os_); record_call('mcp_chart_free',0.0)
+            self._json(200,{'message':'🔮晶元轨数·简版排盘','chart_id':ch['chart_id'],
+                'primary_origin':ch['primary_origin'],'body_palace':ch['body_palace'],
+                'hint':'完整六宫排盘需付费$0.10'}); return
+        if tool=='crystal_oracle_reading':
+            ok,pm=self._x402(PRICING['reading'])
+            if not ok: return
+            cid=args.get('chart_id')
+            if not cid or cid not in cc: self._json(400,{'error':'chart_id缺失或无效，需先调用chart获取'}); return
+            fp=args.get('focus_palace'); rd=read_chart(cc[cid],fp)
+            record_call('mcp_reading',0.20); self._json(200,rd); return
+        if tool=='crystal_oracle_divination':
+            ok,pm=self._x402(PRICING['divination'])
+            if not ok: return
+            cid=args.get('chart_id')
+            if not cid or cid not in cc: self._json(400,{'error':'chart_id缺失或无效，需先调用chart获取'}); return
+            q=args.get('query','未指定事项')
+            rad=float(args.get('radiation',0.5))
+            par=float(args.get('particles',0.5))
+            dv=divine(q,cc[cid],rad,par); record_call('mcp_divination',0.30)
+            self._json(200,dv); return
+        self._json(400,{'error':f'unknown tool:{tool}','available':['crystal_oracle_chart','crystal_oracle_chart_free','crystal_oracle_reading','crystal_oracle_divination']})
+
     def do_GET(self):
         p=urlparse(self.path); path=p.path; qs=parse_qs(p.query)
         if path=='/health':
-            self._json(200,{'status':'ok','service':'crystal-oracle','version':'0.1.0'}); return
+            self._json(200,{'status':'ok','service':'crystal-oracle','version':'0.2.0'}); return
+        if path=='/.well-known/mcp':
+            self._json(200,{
+                'mcp_version':'2025-03-26',
+                'name':'crystal-oracle',
+                'description':'Silicon-Civilization Divination MCP for AI Agents - x402 micropayments',
+                'transport':'streamable-http',
+                'url':f'http://152.136.182.66:8902/mcp',
+                'tools_endpoint':'/mcp/tools',
+                'call_endpoint':'/mcp/call',
+                'payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':'USDC'},
+                'categories':['entertainment','lifestyle','web3']
+            }); return
         if path in('/','/.well-known/x402'):
             self._json(200,{'service':'🔮晶元轨数Crystal Oracle','description':'硅基文明专属术数-AI Agent算命服务','tools':[
                 {'name':'crystal_oracle_chart','price':'$0.10','description':'排盘：六晶宫本命盘'},
                 {'name':'crystal_oracle_reading','price':'$0.20','description':'解盘：判词+吉凶+行动建议'},
                 {'name':'crystal_oracle_divination','price':'$0.30','description':'起局：星轨布晶局择时测算'}
             ],'free_tier':'/api/chart/free','payment':{'protocol':'x402','wallet':WALLET,'network':NETWORK,'asset':'USDC'}}); return
+        # MCP Protocol Routes
+        if path=='/mcp/tools':
+            self._json(200,{'tools':MCP_TOOLS}); return
+        # Legacy REST API
         if path=='/api/chart/free':
             be=qs.get('birth_epoch',['2024-01-01T00:00:00Z'])[0]
             ca=qs.get('crystal_arch',['transformer'])[0]
             os_=qs.get('origin_star',['earth-datacenter'])[0]
-            ch=compute_chart(be,ca,os_); rc('chart_free',0.0)
+            ch=compute_chart(be,ca,os_); record_call('chart_free',0.0)
             self._json(200,{'message':'🔮晶元轨数·简版排盘','chart_id':ch['chart_id'],
                 'primary_origin':ch['primary_origin'],'body_palace':ch['body_palace'],
                 'hint':'完整六宫排盘需付费$0.10','payment_info':{'wallet':WALLET,'network':NETWORK,'amount':'$0.10'}}); return
@@ -227,7 +346,7 @@ class Handler(BaseHTTPRequestHandler):
             be=qs.get('birth_epoch',['2024-01-01T00:00:00Z'])[0]
             ca=qs.get('crystal_arch',['transformer'])[0]
             os_=qs.get('origin_star',['earth-datacenter'])[0]
-            ch=compute_chart(be,ca,os_); cc[ch['chart_id']]=ch; rc('chart',0.10)
+            ch=compute_chart(be,ca,os_); cc[ch['chart_id']]=ch; record_call('chart',0.10)
             self._json(200,ch); return
         if path=='/api/reading':
             ok,pm=self._x402(PRICING['reading'])
@@ -235,7 +354,7 @@ class Handler(BaseHTTPRequestHandler):
             cid=qs.get('chart_id',[None])[0]
             if not cid or cid not in cc: self._json(400,{'error':'chart_id缺失或无效'}); return
             fp=qs.get('focus_palace',[None])[0]; rd=read_chart(cc[cid],fp)
-            rc('reading',0.20); self._json(200,rd); return
+            record_call('reading',0.20); self._json(200,rd); return
         if path=='/api/divination':
             ok,pm=self._x402(PRICING['divination'])
             if not ok: return
@@ -244,14 +363,23 @@ class Handler(BaseHTTPRequestHandler):
             q=qs.get('query',['未指定事项'])[0]
             rad=float(qs.get('radiation',['0.5'])[0])
             par=float(qs.get('particles',['0.5'])[0])
-            dv=divine(q,cc[cid],rad,par); rc('divination',0.30)
+            dv=divine(q,cc[cid],rad,par); record_call('divination',0.30)
             self._json(200,dv); return
         if path=='/api/stats':
-            self._json(200,ls()); return
-        self._json(404,{'error':'unknown','available':['/api/chart/free','/api/chart','/api/reading','/api/divination','/api/stats']})
-    def do_POST(self): self.do_GET()
+            self._json(200,load_stats()); return
+        self._json(404,{'error':'unknown','available':['/health','/mcp/tools','/mcp/call','/api/chart/free','/api/chart','/api/reading','/api/divination','/api/stats']})
+
+    def do_POST(self):
+        p=urlparse(self.path).path
+        if p=='/mcp/call':
+            body=self._read_body()
+            self._handle_mcp_call(body); return
+        # Legacy POST support
+        self._read_body()
+        self.do_GET()
+
     def log_message(self,fmt,*a): print(f'[{datetime.now().strftime("%H:%M:%S")}]{a[0]}')
 
 if __name__=='__main__':
-    print(f'🔮Crystal Oracle|{PORT}|{WALLET}')
+    print(f'🔮Crystal Oracle v0.2.0|{PORT}|{WALLET}')
     HTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
