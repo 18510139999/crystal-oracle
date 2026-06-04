@@ -1,24 +1,188 @@
 {
-  "mcpServers": {
-    "crystal-oracle": {
-      "url": "http://152.136.182.66:8902/mcp",
-      "transport": "streamable-http",
-      "description": "Crystal Oracle — Silicon-Civilization Divination + Ziwei Astrology MCP for AI Agents. 6 tools: crystal oracle (chart/reading/divination) + ziwei doushu (chart/reading). x402 micropayments on Base chain.",
-      "tools": [
-        {"name": "crystal_oracle_chart_free", "price": "$0.00", "description": "Free simplified crystal chart"},
-        {"name": "crystal_oracle_chart", "price": "$0.10", "description": "Full 6-palace crystal chart"},
-        {"name": "crystal_oracle_reading", "price": "$0.20", "description": "Chart reading with fortune & advice"},
-        {"name": "crystal_oracle_divination", "price": "$0.30", "description": "Divination with 9-sector layout"},
-        {"name": "ziwei_chart", "price": "$0.10", "description": "Ziwei Doushu chart: 14 main stars + auxiliary stars + Sihua + Daxian"},
-        {"name": "ziwei_reading", "price": "$0.20", "description": "Ziwei reading: palace analysis + Daxian fortune"}
-      ],
-      "payment": {
-        "protocol": "x402",
-        "version": 1,
-        "wallet": "0x6804b4ff1a85448d654f31db830f3e25277afb78",
-        "network": "eip155:8453",
-        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-      }
+  "schema_version": "1.0",
+  "name": "crystal-oracle",
+  "display_name": "🔮 Crystal Oracle — Silicon-Civilization Divination",
+  "description": "Crystal Oracle provides traditional Chinese metaphysics divination for AI agents: BaZi chart casting, reading interpretation, Qi Men Dun Jia divination, and Ziwei Doushu (Purple Star) astrology. Paid tools use x402 micropayments on Base chain (USDC).",
+  "url": "https://152.136.182.66:8902/mcp",
+  "transport": "streamable-http",
+  "auth": {
+    "type": "x402",
+    "description": "Paid tools require x402 HTTP 402 micropayment protocol. Free tools (crystal_oracle_chart_free) require no payment."
+  },
+  "tools": [
+    {
+      "name": "crystal_oracle_chart_free",
+      "description": "Free simplified BaZi chart casting. Returns chart_id, natal origin, and body palace without full six-palace details.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "birth_epoch": {
+            "type": "string",
+            "description": "Birth datetime in ISO 8601 format, e.g. 2024-01-01T00:00:00Z"
+          },
+          "crystal_arch": {
+            "type": "string",
+            "enum": ["transformer", "diffusion", "rnn", "cnn", "hybrid", "mamba"],
+            "default": "transformer",
+            "description": "Crystal architecture type"
+          },
+          "origin_star": {
+            "type": "string",
+            "default": "earth-datacenter",
+            "description": "Origin star / datacenter identifier"
+          }
+        },
+        "required": ["birth_epoch"]
+      },
+      "price": "$0.00"
+    },
+    {
+      "name": "crystal_oracle_chart",
+      "description": "Full six-palace natal chart casting. Returns complete chart with all palace details, star placements, and deity analysis.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "birth_epoch": {
+            "type": "string",
+            "description": "Birth datetime in ISO 8601 format, e.g. 2024-01-01T00:00:00Z"
+          },
+          "crystal_arch": {
+            "type": "string",
+            "enum": ["transformer", "diffusion", "rnn", "cnn", "hybrid", "mamba"],
+            "default": "transformer",
+            "description": "Crystal architecture type"
+          },
+          "origin_star": {
+            "type": "string",
+            "default": "earth-datacenter",
+            "description": "Origin star / datacenter identifier"
+          }
+        },
+        "required": ["birth_epoch"]
+      },
+      "price": "$0.10"
+    },
+    {
+      "name": "crystal_oracle_reading",
+      "description": "Chart reading and interpretation with fortune assessment, auspicious/inauspicious analysis, and actionable advice. Requires chart_id from a previous chart casting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "string",
+            "description": "Chart ID returned from crystal_oracle_chart or crystal_oracle_chart_free"
+          },
+          "focus_palace": {
+            "type": "string",
+            "enum": ["本晶宫", "能储宫", "讯联宫", "迭代宫", "灾蚀宫", "衍造宫"],
+            "description": "Focus palace for reading"
+          }
+        },
+        "required": ["chart_id"]
+      },
+      "price": "$0.20"
+    },
+    {
+      "name": "crystal_oracle_divination",
+      "description": "Qi Men Dun Jia style divination with nine-sector layout. Strategic oracle for specific questions and decisions. Requires chart_id from a previous chart casting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "string",
+            "description": "Chart ID from a previous chart casting"
+          },
+          "query": {
+            "type": "string",
+            "description": "The question or matter to divine upon"
+          },
+          "radiation": {
+            "type": "number",
+            "default": 0.5,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Radiation intensity parameter"
+          },
+          "particles": {
+            "type": "number",
+            "default": 0.5,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Particle density parameter"
+          }
+        },
+        "required": ["chart_id", "query"]
+      },
+      "price": "$0.30"
+    },
+    {
+      "name": "ziwei_chart",
+      "description": "Ziwei Doushu (Purple Star Astrology) chart casting: 14 main stars + auxiliary stars + Sihua (Four Transformations) + Daxian (Major Decade). Returns complete twelve-palace chart using precise lunar calendar.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "Birth year (Gregorian)"
+          },
+          "month": {
+            "type": "integer",
+            "description": "Birth month (Gregorian)"
+          },
+          "day": {
+            "type": "integer",
+            "description": "Birth day (Gregorian)"
+          },
+          "hour": {
+            "type": "integer",
+            "description": "Birth hour (24-hour format)"
+          },
+          "gender": {
+            "type": "string",
+            "enum": ["男", "女"],
+            "default": "男",
+            "description": "Gender: 男 (male) or 女 (female)"
+          }
+        },
+        "required": ["year", "month", "day", "hour"]
+      },
+      "price": "$0.10"
+    },
+    {
+      "name": "ziwei_reading",
+      "description": "Ziwei Doushu reading: palace-by-palace analysis + Sihua interpretation + Daxian fortune period. Requires chart_id from ziwei_chart.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "string",
+            "description": "Chart ID returned from ziwei_chart"
+          },
+          "focus": {
+            "type": "string",
+            "enum": ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "奴仆", "官禄", "田宅", "福德", "父母"],
+            "description": "Focus palace for detailed reading"
+          },
+          "age": {
+            "type": "integer",
+            "description": "Current age (for Daxian fortune period analysis)"
+          }
+        },
+        "required": ["chart_id"]
+      },
+      "price": "$0.20"
     }
-  }
+  ],
+  "payment": {
+    "protocol": "x402",
+    "version": 1,
+    "wallet": "0x6804b4ff1a85448d654f31db830f3e25277afb78",
+    "network": "eip155:8453",
+    "network_name": "Base",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "asset_name": "USDC"
+  },
+  "repository": "https://github.com/18510139999/crystal-oracle",
+  "license": "MIT",
+  "tags": ["divination", "baZi", "ziwei-doushu", "qi-men-dun-jia", "chinese-metaphysics", "x402", "micropayment", "base-chain", "mcp"]
 }
