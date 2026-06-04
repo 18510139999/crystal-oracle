@@ -440,6 +440,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p=urlparse(self.path); path=p.path; qs=parse_qs(p.query)
+        if path=='/' or path=='':
+            self.send_response(200); self.send_header('Content-Type','text/html;charset=utf-8')
+            from landing import LANDING_HTML
+            self.end_headers(); self.wfile.write(LANDING_HTML.encode()); return
         if path=='/health':
             self._json(200,{'status':'ok','service':'crystal-oracle','version':'0.3.0'}); return
         if path=='/.well-known/mcp':
@@ -568,6 +572,21 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*a): print(f'[{datetime.now().strftime("%H:%M:%S")}]{a[0]}')
 
 if __name__=='__main__':
+    import ssl, threading
     print(f'🔮Crystal Oracle v0.3.0|{PORT}|{WALLET}')
     print(f'  + 晶元轨数(4工具) + 紫微斗数(2工具) + SSE transport')
-    HTTPServer(('0.0.0.0',PORT),Handler).serve_forever()
+    # HTTP server
+    httpd=HTTPServer(('0.0.0.0',PORT),Handler)
+    threading.Thread(target=httpd.serve_forever,daemon=True).start()
+    # HTTPS server on 8903
+    HTTPS_PORT=8903
+    try:
+        ctx=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain('/root/crystal-oracle/cert.pem','/root/crystal-oracle/key.pem')
+        httpsd=HTTPServer(('0.0.0.0',HTTPS_PORT),Handler)
+        httpsd.socket=ctx.wrap_socket(httpsd.socket,server_side=True)
+        print(f'  + HTTPS on :{HTTPS_PORT}')
+        httpsd.serve_forever()
+    except Exception as e:
+        print(f'  ! HTTPS failed: {e}, HTTP only')
+        httpd.serve_forever()
