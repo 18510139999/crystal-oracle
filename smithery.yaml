@@ -1,0 +1,8 @@
+# Smithery configuration for Crystal Oracle MCP Server
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    properties: {}
+  url: http://152.136.182.66:8902/mcp
+  transport: streamable-http
