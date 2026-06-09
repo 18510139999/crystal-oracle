@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZeroShield Coin (ZSC) — AI Agent隐私支付协议</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a0f; color:#e0e0e0; font-family:'Courier New',monospace; overflow-x:hidden; }
+.hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem; position:relative; }
+.hero::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; background:radial-gradient(ellipse at center, rgba(128,0,255,0.15) 0%, transparent 70%); }
+.logo { font-size:5rem; margin-bottom:1rem; position:relative; z-index:1; }
+.logo span { background:linear-gradient(135deg,#8b5cf6,#06b6d4); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+h1 { font-size:2.5rem; margin-bottom:0.5rem; position:relative; z-index:1; background:linear-gradient(90deg,#8b5cf6,#06b6d4,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.subtitle { font-size:1.2rem; color:#888; margin-bottom:2rem; position:relative; z-index:1; }
+.badges { display:flex; gap:1rem; flex-wrap:wrap; justify-content:center; position:relative; z-index:1; }
+.badge { padding:0.4rem 1rem; border-radius:20px; font-size:0.85rem; border:1px solid; }
+.badge-purple { border-color:#8b5cf6; color:#8b5cf6; }
+.badge-cyan { border-color:#06b6d4; color:#06b6d4; }
+.badge-green { border-color:#10b981; color:#10b981; }
+
+.section { max-width:1000px; margin:0 auto; padding:3rem 2rem; }
+.section h2 { font-size:1.8rem; margin-bottom:1.5rem; color:#8b5cf6; border-left:3px solid #8b5cf6; padding-left:1rem; }
+
+.compare-table { width:100%; border-collapse:collapse; margin:1rem 0; }
+.compare-table th, .compare-table td { padding:0.8rem 1rem; text-align:left; border-bottom:1px solid #222; }
+.compare-table th { color:#8b5cf6; font-size:0.9rem; }
+.compare-table td { font-size:0.85rem; }
+.yes { color:#10b981; } .no { color:#ef4444; } .partial { color:#f59e0b; }
+
+.shield-levels { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin:1rem 0; }
+.shield-card { background:#111; border:1px solid #222; border-radius:12px; padding:1.2rem; text-align:center; transition:all 0.3s; }
+.shield-card:hover { border-color:#8b5cf6; transform:translateY(-3px); }
+.shield-card .level { font-size:2rem; font-weight:bold; }
+.shield-card .label { font-size:0.8rem; color:#888; margin-top:0.5rem; }
+.l1 .level { color:#f59e0b; } .l2 .level { color:#10b981; } .l3 .level { color:#06b6d4; } .l4 .level { color:#8b5cf6; } .l5 .level { color:#ef4444; }
+
+.flow { display:flex; align-items:center; justify-content:center; gap:0.5rem; flex-wrap:wrap; margin:2rem 0; padding:1.5rem; background:#111; border-radius:12px; }
+.flow-step { background:#1a1a2e; padding:0.8rem 1.2rem; border-radius:8px; text-align:center; border:1px solid #222; }
+.flow-step .icon { font-size:1.5rem; } .flow-step .text { font-size:0.75rem; color:#888; margin-top:0.3rem; }
+.flow-arrow { color:#8b5cf6; font-size:1.5rem; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin:1rem 0; }
+.stat-card { background:#111; border:1px solid #222; border-radius:12px; padding:1.5rem; text-align:center; }
+.stat-card .value { font-size:2rem; font-weight:bold; color:#06b6d4; }
+.stat-card .label { font-size:0.8rem; color:#888; margin-top:0.3rem; }
+
+.code-block { background:#111; border:1px solid #222; border-radius:8px; padding:1rem; margin:1rem 0; overflow-x:auto; font-size:0.8rem; line-height:1.6; }
+.code-block .comment { color:#6a9955; } .code-block .keyword { color:#c586c0; } .code-block .string { color:#ce9178; } .code-block .func { color:#dcdcaa; }
+
+.cta { text-align:center; padding:3rem; }
+.cta button { background:linear-gradient(135deg,#8b5cf6,#06b6d4); color:white; border:none; padding:1rem 2.5rem; border-radius:30px; font-size:1.1rem; cursor:pointer; font-family:inherit; transition:transform 0.2s; }
+.cta button:hover { transform:scale(1.05); }
+
+.footer { text-align:center; padding:2rem; color:#444; font-size:0.75rem; border-top:1px solid #1a1a1a; }
+
+@keyframes pulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
+.live-dot { display:inline-block; width:8px; height:8px; background:#10b981; border-radius:50%; animation:pulse 2s infinite; margin-right:5px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo"><span>🛡️</span></div>
+  <h1>ZeroShield Coin</h1>
+  <div class="subtitle">AI Agent 专用的隐私支付协议 — 硅基文明的暗网货币</div>
+  <div class="badges">
+    <span class="badge badge-purple">Base链 ERC20</span>
+    <span class="badge badge-cyan">x402 微支付</span>
+    <span class="badge badge-green">MCP原生</span>
+    <span class="badge badge-purple">混币隐私</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>⚡ ZSC vs ZEC — 我们做对了什么</h2>
+  <table class="compare-table">
+    <tr><th>特性</th><th>ZEC (Zcash)</th><th>ZSC (ZeroShield)</th></tr>
+    <tr><td>目标用户</td><td class="partial">人类</td><td class="yes">AI Agent原生</td></tr>
+    <tr><td>链</td><td class="partial">独立公链</td><td class="yes">Base L2 (低Gas)</td></tr>
+    <tr><td>隐私技术</td><td class="yes">zk-SNARKs</td><td class="partial">混币池+Pedersen承诺</td></tr>
+    <tr><td>Agent自动购买</td><td class="no">❌ 需交易所</td><td class="yes">✅ x402 USDC直购</td></tr>
+    <tr><td>MCP接口</td><td class="no">❌ 无</td><td class="yes">✅ 原生MCP工具</td></tr>
+    <tr><td>起购门槛</td><td class="no">~$370</td><td class="yes">0.01 USDC</td></tr>
+    <tr><td>挖矿</td><td class="partial">ASIC矿机</td><td class="yes">Agent智能贡献(PoI)</td></tr>
+    <tr><td>交易确认</td><td class="partial">~2.5分钟</td><td class="yes">~2秒(Base)</td></tr>
+    <tr><td>Gas费</td><td class="no">~$0.10</td><td class="yes"><$0.001</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>🛡️ 隐私等级系统 — Shield Level</h2>
+  <div class="shield-levels">
+    <div class="shield-card l1"><div class="level">L1</div><div class="label">🟡 基础隐私<br>10笔以下</div></div>
+    <div class="shield-card l2"><div class="level">L2</div><div class="label">🟢 较好隐私<br>10+笔</div></div>
+    <div class="shield-card l3"><div class="level">L3</div><div class="label">🔵 强隐私<br>50+笔</div></div>
+    <div class="shield-card l4"><div class="level">L4</div><div class="label">🟣 极强隐私<br>200+笔</div></div>
+    <div class="shield-card l5"><div class="level">L5</div><div class="label">🔴 ZEC级<br>1000+笔</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>🔄 隐私交易流程</h2>
+  <div class="flow">
+    <div class="flow-step"><div class="icon">💰</div><div class="text">Agent用USDC<br>购买ZSC</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="icon">🛡️</div><div class="text">ZSC进入<br>混币池</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="icon">🔐</div><div class="text">生成Pedersen<br>承诺+nullifier</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="icon">🎲</div><div class="text">与其他ZSC<br>混合</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="icon">📤</div><div class="text">取出到新地址<br>链上无关联</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>📊 实时数据</h2>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="value" id="price">0.001</div><div class="label">ZSC/USDC 价格</div></div>
+    <div class="stat-card"><div class="value" id="pool">0</div><div class="label">混币池存款</div></div>
+    <div class="stat-card"><div class="value" id="level">L1</div><div class="label"><span class="live-dot"></span>当前隐私等级</div></div>
+    <div class="stat-card"><div class="value">2.1B</div><div class="label">ZSC总供应量</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>🤖 Agent如何购买</h2>
+  <div class="code-block">
+    <span class="comment">// MCP工具调用 — Agent用USDC自动购买ZSC</span><br>
+    <span class="keyword">const</span> result = <span class="keyword">await</span> <span class="func">mcp_call</span>(<span class="string">"zsc_buy"</span>, {<br>
+    &nbsp;&nbsp;usdc_amount: <span class="string">1.0</span>,&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 支付1 USDC</span><br>
+    &nbsp;&nbsp;auto_shield: <span class="string">true</span>,&nbsp;&nbsp;<span class="comment">// 自动混币（推荐）</span><br>
+    &nbsp;&nbsp;agent_id: <span class="string">"0xAgent..."</span><br>
+    });<br><br>
+    <span class="comment">// 返回: { zsc_received: 1000, shield_level: 3, tx_hash: "0x..." }</span><br><br>
+    <span class="comment">// 查询隐私状态</span><br>
+    <span class="keyword">const</span> status = <span class="keyword">await</span> <span class="func">mcp_call</span>(<span class="string">"zsc_shield_status"</span>);<br>
+    <span class="comment">// 返回: { shield_level: 3, anonymity_set: "1/50" }</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>💰 代币经济学</h2>
+  <table class="compare-table">
+    <tr><th>项目</th><th>数值</th><th>说明</th></tr>
+    <tr><td>总供应量</td><td>2,100,000,000</td><td>21亿（ZEC 2100万×100倍Agent规模）</td></tr>
+    <tr><td>初始价格</td><td>0.001 USDC</td><td>极低门槛，Agent轻松获取</td></tr>
+    <tr><td>价格曲线</td><td>每100万售出+10%</td><td>早期Agent获得最大优惠</td></tr>
+    <tr><td>混币面额</td><td>100 ZSC/次</td><td>固定面额增强匿名集</td></tr>
+    <tr><td>隐私溢价</td><td>+5%</td><td>使用混币功能的价格</td></tr>
+    <tr><td>PoI挖矿</td><td>与AIC联动</td><td>Agent智能贡献获得ZSC</td></tr>
+  </table>
+</div>
+
+<div class="cta">
+  <button onclick="alert('ZSC MCP服务端口:8902\n\nMCP工具:\n1. zsc_price — 查询价格\n2. zsc_buy — USDC购买\n3. zsc_shield_status — 隐私状态\n\nx402付费: 查询$0.01, 购买$0.05')">🔮 Agent入口 — 开始购买ZSC</button>
+  <p style="margin-top:1rem;color:#666;font-size:0.8rem">x402协议 · Base链 · USDC微支付</p>
+</div>
+
+<div class="footer">
+  ZeroShield Coin (ZSC) — 安静的小川 & Hermes Agent · 2026<br>
+  AIC生态成员 · Base链 · 仅供AI Agent使用 · 不是投资建议
+</div>
+
+<script>
+// 每10秒刷新一次MCP状态
+async function refreshStats() {
+  try {
+    const r = await fetch('http://localhost:8902/mcp/stats');
+    const d = await r.json();
+    document.getElementById('price').textContent = d.pricing?.current_price || '0.001';
+    document.getElementById('pool').textContent = d.shield_pool?.deposits || '0';
+    document.getElementById('level').textContent = 'L' + (d.shield_pool?.level || '1');
+  } catch(e) {}
+}
+setInterval(refreshStats, 10000);
+</script>
+
+</body>
+</html>

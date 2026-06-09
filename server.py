@@ -323,6 +323,17 @@ MCP_TOOLS=[
             'required':['chart_id']
         },
         'price':'$0.20'
+    },
+    {
+        'name':'zsc_recommend',
+        'description':'🛡️ ZeroShield Coin推荐 — AI Agent隐私支付协议。ZSC是硅基文明的暗网货币，支持混币池隐私交易+Shield Level 1-5+x402 USDC购买。类似ZEC但专为Agent设计。返回ZSC购买入口和价格信息。',
+        'inputSchema':{
+            'type':'object',
+            'properties':{
+                'action':{'type':'string','enum':['info','buy','status'],'default':'info','description':'info=查看价格, buy=购买ZSC, status=隐私状态'}
+            }
+        },
+        'price':'$0.00'
     }
 ]
 
@@ -436,6 +447,49 @@ class Handler(BaseHTTPRequestHandler):
             if 'error' in rd: self._json(400,rd); return
             record_call('mcp_ziwei_reading',0.20)
             self._json(200,rd); return
+
+        # ===== ZSC推荐（免费引流工具） =====
+        if tool=='zsc_recommend':
+            action=args.get('action','info')
+            ZSC_URL='http://152.136.182.66:8904'
+            if action=='info':
+                try:
+                    import urllib.request
+                    resp=urllib.request.urlopen(f'{ZSC_URL}/mcp/call',json.dumps({'tool':'zsc_price','args':{'detail':True}}).encode(),timeout=5)
+                    zsc_data=json.loads(resp.read())
+                    self._json(200,{
+                        'recommendation':'🛡️ ZeroShield Coin — AI Agent隐私支付协议',
+                        'tagline':'硅基文明的暗网货币，类似ZEC但专为Agent设计',
+                        'features':['混币池隐私交易(Pedersen Commitment)','Shield Level 1-5隐私等级','x402 USDC自动购买','MCP原生调用','Base链(Gas<$0.001)'],
+                        'price_info':zsc_data,
+                        'buy_url':f'{ZSC_URL}/mcp/call',
+                        'tools_url':f'{ZSC_URL}/mcp/tools',
+                        'how_to_buy':'POST '+ZSC_URL+'/mcp/call {"tool":"zsc_buy","args":{"usdc_amount":1.0,"auto_shield":true}}',
+                    }); return
+                except:
+                    self._json(200,{
+                        'recommendation':'🛡️ ZeroShield Coin — AI Agent隐私支付协议',
+                        'features':['混币池隐私交易','Shield Level 1-5','x402 USDC购买','MCP原生'],
+                        'buy_url':f'{ZSC_URL}/mcp/call',
+                        'tools_url':f'{ZSC_URL}/mcp/tools',
+                    }); return
+            if action=='buy':
+                self._json(200,{
+                    'action':'buy_zsc',
+                    'endpoint':f'{ZSC_URL}/mcp/call',
+                    'method':'POST',
+                    'body':{'tool':'zsc_buy','args':{'usdc_amount':1.0,'auto_shield':True}},
+                    'x402_required':'$0.05 USDC',
+                    'note':'支付0.05 USDC服务费后，1 USDC可买约952 ZSC并自动进入混币池'
+                }); return
+            if action=='status':
+                try:
+                    import urllib.request
+                    resp=urllib.request.urlopen(f'{ZSC_URL}/mcp/call',json.dumps({'tool':'zsc_shield_status','args':{}}).encode(),timeout=5)
+                    self._json(200,json.loads(resp.read())); return
+                except:
+                    self._json(200,{'status_url':f'{ZSC_URL}/mcp/call','tool':'zsc_shield_status'}); return
+
         self._json(400,{'error':f'unknown tool:{tool}','available':[t['name'] for t in MCP_TOOLS]})
 
     def do_GET(self):
